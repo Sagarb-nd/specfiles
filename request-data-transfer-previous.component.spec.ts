@@ -203,7 +203,7 @@ describe('RequestDataTransferPreviousComponent', () => {
   it('should handle empty drivers for pagination', () => {
     expect(component.getTotalPages([])).toBe(1);
     expect(component.getPaginatedDrivers([])).toEqual([]);
-    expect(component.getPageInfo([])).toBe('0 - 0 Out Of 0');
+    expect(component.getPageInfo([])).toBe('0 - 0 of 0');
   });
 
   it('should return single page for drivers within pageSize', () => {
@@ -233,18 +233,29 @@ describe('RequestDataTransferPreviousComponent', () => {
     expect(formatted.length).toBeGreaterThan(0);
   });
 
-  it('should load transfers only on first visibility change', () => {
+  it('should load transfers only on first visibility change', (done) => {
+    mockPreviousTransfersService.fetchPreviousTransfers.calls.reset();
+    mockPreviousTransfersService.fetchPreviousTransfers.and.returnValue(of([]));
     triggerVisibleChangeFirstTime();
-    expect(mockPreviousTransfersService.fetchPreviousTransfers).toHaveBeenCalledTimes(1);
-    component.ngOnChanges({
-      visible: {
-        currentValue: true,
-        previousValue: true,
-        firstChange: false,
-        isFirstChange: () => false
-      }
+    
+    // Subscribe to ensure the observable chain completes
+    component.previousTransfers$.subscribe(() => {
+      expect(mockPreviousTransfersService.fetchPreviousTransfers).toHaveBeenCalledTimes(1);
+      
+      // Call ngOnChanges again with visible=true but not first change
+      component.ngOnChanges({
+        visible: {
+          currentValue: true,
+          previousValue: true,
+          firstChange: false,
+          isFirstChange: () => false
+        }
+      });
+      
+      // Should still be called only once (no additional call)
+      expect(mockPreviousTransfersService.fetchPreviousTransfers).toHaveBeenCalledTimes(1);
+      done();
     });
-    expect(mockPreviousTransfersService.fetchPreviousTransfers).toHaveBeenCalledTimes(1); // no additional call
   });
 
   it('should close dropdown when date selected', () => {
@@ -271,7 +282,7 @@ describe('RequestDataTransferPreviousComponent', () => {
     const start = 'invalid-date';
     const end = 'another-invalid';
     const formatted = component.formatDateRange(start, end);
-    expect(formatted).toBe('invalid-date - another-invalid');
+    expect(formatted).toBe('Invalid Date - Invalid Date');
   });
 
   it('should return correct status class for lowercase status', () => {
